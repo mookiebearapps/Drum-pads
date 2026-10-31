@@ -1,359 +1,570 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-   <meta charset="UTF-8">
-   <!-- CRITICAL MOBILE TAGS: Prevents zooming, scaling, and scrolling -->
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-   
-   <!-- PWA / Home Screen App tags -->
-   <meta name="apple-mobile-web-app-capable" content="yes">
-   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-   <meta name="mobile-web-app-capable" content="yes">
-   <meta name="theme-color" content="#121212">
-   
-   <title>Mobile Drum Pad</title>
-   
-   <style>
-       /* Mobile Reset */
-       * {
-           box-sizing: border-box;
-           -webkit-tap-highlight-color: transparent; /* Removes blue flash on Android */
-           user-select: none; /* Prevents text selection */
-           -webkit-user-select: none;
-           touch-action: none; /* Prevents all browser scrolling and swiping */
-       }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#121212">
+    
+    <title>MPC Touch & Swap</title>
+    
+    <style>
+        /* Mobile Reset & App-like behavior */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; /* Prevents browser scrolling/swiping */
+        }
 
-       body {
-           background-color: #121212;
-           color: #ffffff;
-           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-           margin: 0;
-           padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
-           height: 100vh;
-           width: 100vw;
-           display: flex;
-           flex-direction: column;
-           overflow: hidden;
-       }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-       header {
-           text-align: center;
-           padding: 15px 0;
-           font-size: 1.2rem;
-           font-weight: 800;
-           letter-spacing: 2px;
-           color: #00ffcc;
-           text-transform: uppercase;
-           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-           z-index: 10;
-           background: #1a1a1a;
-       }
+        header {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #00ffcc;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            background: #1a1a1a;
+            flex-shrink: 0;
+        }
 
-       .pad-container {
-           flex: 1;
-           display: grid;
-           grid-template-columns: repeat(3, 1fr);
-           grid-template-rows: repeat(3, 1fr);
-           gap: 12px;
-           padding: 15px;
-           background: #0a0a0a;
-       }
+        .instructions {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+            padding: 10px 20px;
+            flex-shrink: 0;
+        }
 
-       .pad {
-           background: linear-gradient(145deg, #2a2a2a, #1f1f1f);
-           border: 2px solid #333;
-           border-radius: 16px;
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           font-size: 1.1rem;
-           font-weight: bold;
-           color: #888;
-           box-shadow: 
-               6px 6px 12px #050505, 
-               -6px -6px 12px #2b2b2b;
-           transition: background 0.05s, transform 0.05s, box-shadow 0.05s;
-       }
+        .pad-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 12px;
+            padding: 15px;
+            background: #0a0a0a;
+            position: relative;
+        }
 
-       /* Active State - Lights up like an MPC pad */
-       .pad.active {
-           transform: scale(0.96);
-           background: #00ffcc;
-           color: #000;
-           box-shadow: 0 0 20px #00ffcc;
-           border-color: #ffffff;
-       }
+        .pad {
+            background: linear-gradient(145deg, #2a2a2a, #1f1f1f);
+            border: 2px solid #333;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #888;
+            box-shadow: 6px 6px 12px #050505, -6px -6px 12px #2b2b2b;
+            transition: background 0.05s, transform 0.05s, box-shadow 0.05s, opacity 0.2s;
+            position: relative;
+        }
 
-       #start-overlay {
-           position: absolute;
-           top: 0; left: 0; right: 0; bottom: 0;
-           background: rgba(18, 18, 18, 0.95);
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           z-index: 100;
-       }
+        /* Make inner text ignore pointer events so elementFromPoint always returns the .pad */
+        .pad span {
+            pointer-events: none;
+        }
 
-       .start-btn {
-           background: #00ffcc;
-           color: #000;
-           border: none;
-           padding: 20px 40px;
-           font-size: 1.5rem;
-           font-weight: bold;
-           border-radius: 30px;
-           box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
-       }
-   </style>
+        /* Active Sound State */
+        .pad.active {
+            transform: scale(0.96);
+            background: #00ffcc;
+            color: #000;
+            box-shadow: 0 0 20px #00ffcc;
+            border-color: #ffffff;
+        }
+
+        /* Dragging Source State */
+        .pad.origin-hidden {
+            opacity: 0.3;
+            transform: scale(0.9);
+        }
+
+        /* Hovering Drop Target State */
+        .pad.drop-hover {
+            border-color: #ff00cc;
+            box-shadow: 0 0 20px #ff00cc;
+            background: #331122;
+            color: #ff00cc;
+            transform: scale(1.05);
+        }
+
+        /* Floating Drag Clone */
+        .pad-clone {
+            background: #00ffcc;
+            color: #000;
+            border: 2px solid #ffffff;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+            position: fixed;
+            pointer-events: none; /* Let touches pass through to detect underlying pads */
+            z-index: 1000;
+            opacity: 0.9;
+        }
+
+        /* Full Screen Overlay */
+        #start-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(18, 18, 18, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .start-btn {
+            background: #00ffcc;
+            color: #000;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 255, 204, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(0, 255, 204, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 255, 204, 0.5); }
+        }
+    </style>
 </head>
 <body>
 
-   <!-- Overlay required by browsers to unlock Web Audio on first user interaction -->
-   <div id="start-overlay">
-       <button class="start-btn" id="start-btn">TAP TO START</button>
-   </div>
+    <!-- Tap to Start Overlay -->
+    <div id="start-overlay">
+        <button class="start-btn" id="start-btn">TAP TO START</button>
+    </div>
 
-   <header>MPC Touch</header>
+    <header>MPC Touch</header>
+    <div class="instructions">Tap to play • Long-press and drag to swap pads</div>
 
-   <div class="pad-container" id="pad-container">
-       <!-- Pads generated by JS -->
-   </div>
+    <div class="pad-container" id="pad-container">
+        <!-- Pads generated by JS -->
+    </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// Firebase Configuration & Initialization
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-drum-pad-app';
+let firebaseConfig = {};
+try {
+    firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+} catch (e) { console.warn("No valid firebase config found"); }
+
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+let app, auth, db, userId;
+if (Object.keys(firebaseConfig).length > 0) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+}
+
 let audioCtx;
 let noiseBuffer;
 
-// 1. Initialize Audio System ONLY after user taps (Mobile Browser Security Policy)
-document.getElementById('start-btn').addEventListener('touchstart', initAudio);
-document.getElementById('start-btn').addEventListener('click', initAudio);
+// 1. Initialize Audio System
+const startBtn = document.getElementById('start-btn');
+const overlay = document.getElementById('start-overlay');
 
 function initAudio(e) {
-   e.preventDefault();
-   document.getElementById('start-overlay').style.display = 'none';
-   
-   const AudioContext = window.AudioContext || window.webkitAudioContext;
-   audioCtx = new AudioContext();
+    if (e) e.preventDefault();
+    overlay.style.display = 'none';
+    
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContext();
 
-   // Create noise buffer for snares and hats
-   const bufferSize = audioCtx.sampleRate * 2;
-   noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-   const output = noiseBuffer.getChannelData(0);
-   for (let i = 0; i < bufferSize; i++) {
-       output[i] = Math.random() * 2 - 1;
-   }
+    // Noise buffer for Snares, Hats, Crashes, Claps
+    const bufferSize = audioCtx.sampleRate * 2;
+    noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
 }
 
-// 2. Synthesizer Functions (Direct Web Audio API)
+startBtn.addEventListener('touchstart', initAudio, { passive: false });
+startBtn.addEventListener('click', initAudio); // Fallback
+
+// 2. Synthesizer Functions
 const sounds = {
-   Kick: () => {
-       const osc = audioCtx.createOscillator();
-       const gainNode = audioCtx.createGain();
-       osc.connect(gainNode);
-       gainNode.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       osc.frequency.setValueAtTime(150, time);
-       osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-       gainNode.gain.setValueAtTime(1, time);
-       gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-       
-       osc.start(time); osc.stop(time + 0.5);
-   },
-   Snare: () => {
-       const osc = audioCtx.createOscillator();
-       const oscGain = audioCtx.createGain();
-       const noise = audioCtx.createBufferSource();
-       const noiseGain = audioCtx.createGain();
-       const filter = audioCtx.createBiquadFilter();
-
-       noise.buffer = noiseBuffer;
-       filter.type = 'highpass'; filter.frequency.value = 1000;
-
-       osc.connect(oscGain); oscGain.connect(audioCtx.destination);
-       noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       osc.type = 'triangle';
-       osc.frequency.setValueAtTime(250, time);
-       oscGain.gain.setValueAtTime(0.5, time);
-       oscGain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-
-       noiseGain.gain.setValueAtTime(1, time);
-       noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-
-       osc.start(time); noise.start(time);
-       osc.stop(time + 0.2); noise.stop(time + 0.2);
-   },
-   HiHatClosed: () => {
-       const noise = audioCtx.createBufferSource();
-       const noiseGain = audioCtx.createGain();
-       const filter = audioCtx.createBiquadFilter();
-
-       noise.buffer = noiseBuffer;
-       filter.type = 'highpass'; filter.frequency.value = 5000;
-
-       noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       noiseGain.gain.setValueAtTime(0.7, time);
-       noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
-
-       noise.start(time); noise.stop(time + 0.05);
-   },
-   HiHatOpen: () => {
-       const noise = audioCtx.createBufferSource();
-       const noiseGain = audioCtx.createGain();
-       const filter = audioCtx.createBiquadFilter();
-
-       noise.buffer = noiseBuffer;
-       filter.type = 'highpass'; filter.frequency.value = 5000;
-
-       noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       noiseGain.gain.setValueAtTime(0.7, time);
-       noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
-
-       noise.start(time); noise.stop(time + 0.3);
-   },
-   Clap: () => {
-       const noise = audioCtx.createBufferSource();
-       const noiseGain = audioCtx.createGain();
-       const filter = audioCtx.createBiquadFilter();
-
-       noise.buffer = noiseBuffer;
-       filter.type = 'bandpass'; filter.frequency.value = 1500;
-
-       noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       noiseGain.gain.setValueAtTime(0, time);
-       noiseGain.gain.linearRampToValueAtTime(1, time + 0.01);
-       noiseGain.gain.linearRampToValueAtTime(0, time + 0.02);
-       noiseGain.gain.linearRampToValueAtTime(1, time + 0.03);
-       noiseGain.gain.linearRampToValueAtTime(0, time + 0.04);
-       noiseGain.gain.linearRampToValueAtTime(1, time + 0.05);
-       noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-
-       noise.start(time); noise.stop(time + 0.2);
-   },
-   TomLow: () => {
-       const osc = audioCtx.createOscillator();
-       const gainNode = audioCtx.createGain();
-       osc.connect(gainNode); gainNode.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       osc.frequency.setValueAtTime(100, time);
-       osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-       gainNode.gain.setValueAtTime(1, time);
-       gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-       
-       osc.start(time); osc.stop(time + 0.5);
-   },
-   TomHigh: () => {
-       const osc = audioCtx.createOscillator();
-       const gainNode = audioCtx.createGain();
-       osc.connect(gainNode); gainNode.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       osc.frequency.setValueAtTime(200, time);
-       osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-       gainNode.gain.setValueAtTime(1, time);
-       gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-       
-       osc.start(time); osc.stop(time + 0.5);
-   },
-   Crash: () => {
-       const noise = audioCtx.createBufferSource();
-       const noiseGain = audioCtx.createGain();
-       const filter = audioCtx.createBiquadFilter();
-
-       noise.buffer = noiseBuffer;
-       filter.type = 'highpass'; filter.frequency.value = 4000;
-
-       noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       noiseGain.gain.setValueAtTime(0.8, time);
-       noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 1.5);
-
-       noise.start(time); noise.stop(time + 1.5);
-   },
-   Cowbell: () => {
-       const osc1 = audioCtx.createOscillator();
-       const osc2 = audioCtx.createOscillator();
-       const gainNode = audioCtx.createGain();
-       
-       osc1.type = 'square'; osc2.type = 'square';
-       osc1.frequency.value = 800; osc2.frequency.value = 540;
-
-       osc1.connect(gainNode); osc2.connect(gainNode);
-       gainNode.connect(audioCtx.destination);
-
-       const time = audioCtx.currentTime;
-       gainNode.gain.setValueAtTime(0.5, time);
-       gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
-
-       osc1.start(time); osc2.start(time);
-       osc1.stop(time + 0.3); osc2.stop(time + 0.3);
-   }
+    Kick: () => {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        osc.frequency.setValueAtTime(150, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+        gainNode.gain.setValueAtTime(1, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+        osc.start(time); osc.stop(time + 0.5);
+    },
+    Snare: () => {
+        const osc = audioCtx.createOscillator();
+        const oscGain = audioCtx.createGain();
+        const noise = audioCtx.createBufferSource();
+        const noiseGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        noise.buffer = noiseBuffer;
+        filter.type = 'highpass'; filter.frequency.value = 1000;
+        osc.connect(oscGain); oscGain.connect(audioCtx.destination);
+        noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(250, time);
+        oscGain.gain.setValueAtTime(0.5, time);
+        oscGain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+        noiseGain.gain.setValueAtTime(1, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+        osc.start(time); noise.start(time);
+        osc.stop(time + 0.2); noise.stop(time + 0.2);
+    },
+    HiHatClosed: () => {
+        const noise = audioCtx.createBufferSource();
+        const noiseGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        noise.buffer = noiseBuffer;
+        filter.type = 'highpass'; filter.frequency.value = 5000;
+        noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        noiseGain.gain.setValueAtTime(0.7, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+        noise.start(time); noise.stop(time + 0.05);
+    },
+    HiHatOpen: () => {
+        const noise = audioCtx.createBufferSource();
+        const noiseGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        noise.buffer = noiseBuffer;
+        filter.type = 'highpass'; filter.frequency.value = 5000;
+        noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        noiseGain.gain.setValueAtTime(0.7, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
+        noise.start(time); noise.stop(time + 0.3);
+    },
+    Clap: () => {
+        const noise = audioCtx.createBufferSource();
+        const noiseGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        noise.buffer = noiseBuffer;
+        filter.type = 'bandpass'; filter.frequency.value = 1500;
+        noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        noiseGain.gain.setValueAtTime(0, time);
+        noiseGain.gain.linearRampToValueAtTime(1, time + 0.01);
+        noiseGain.gain.linearRampToValueAtTime(0, time + 0.02);
+        noiseGain.gain.linearRampToValueAtTime(1, time + 0.03);
+        noiseGain.gain.linearRampToValueAtTime(0, time + 0.04);
+        noiseGain.gain.linearRampToValueAtTime(1, time + 0.05);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+        noise.start(time); noise.stop(time + 0.2);
+    },
+    TomLow: () => {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        osc.frequency.setValueAtTime(100, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+        gainNode.gain.setValueAtTime(1, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+        osc.start(time); osc.stop(time + 0.5);
+    },
+    TomHigh: () => {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        osc.frequency.setValueAtTime(200, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+        gainNode.gain.setValueAtTime(1, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+        osc.start(time); osc.stop(time + 0.5);
+    },
+    Crash: () => {
+        const noise = audioCtx.createBufferSource();
+        const noiseGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        noise.buffer = noiseBuffer;
+        filter.type = 'highpass'; filter.frequency.value = 4000;
+        noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        noiseGain.gain.setValueAtTime(0.8, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 1.5);
+        noise.start(time); noise.stop(time + 1.5);
+    },
+    Cowbell: () => {
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc1.type = 'square'; osc2.type = 'square';
+        osc1.frequency.value = 800; osc2.frequency.value = 540;
+        osc1.connect(gainNode); osc2.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        const time = audioCtx.currentTime;
+        gainNode.gain.setValueAtTime(0.5, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
+        osc1.start(time); osc2.start(time);
+        osc1.stop(time + 0.3); osc2.stop(time + 0.3);
+    }
 };
 
-// 3. Layout Configuration (Standard MPC style bottom-to-top layout)
-const padsConfig = [
-   { sound: 'Crash', label: 'CRASH' },
-   { sound: 'TomHigh', label: 'TOM HI' },
-   { sound: 'HiHatOpen', label: 'OPEN HAT' },
-   { sound: 'TomLow', label: 'TOM LOW' },
-   { sound: 'Snare', label: 'SNARE' },
-   { sound: 'HiHatClosed', label: 'CLOSED HAT' },
-   { sound: 'Kick', label: 'KICK' },
-   { sound: 'Clap', label: 'CLAP' },
-   { sound: 'Cowbell', label: 'COWBELL' }
+// 3. Layout Configuration & DOM Generation
+const initialConfig = [
+    // Top Row: Accents and Cymbals
+    { sound: 'Crash', label: 'CRASH' },
+    { sound: 'Clap', label: 'CLAP' },
+    { sound: 'Cowbell', label: 'COWBELL' },
+    // Middle Row: Toms and Open Hat for transitions
+    { sound: 'TomLow', label: 'TOM LOW' },
+    { sound: 'TomHigh', label: 'TOM HI' },
+    { sound: 'HiHatOpen', label: 'OPEN HAT' },
+    // Bottom Row: Core Groove elements
+    { sound: 'Kick', label: 'KICK' },
+    { sound: 'Snare', label: 'SNARE' },
+    { sound: 'HiHatClosed', label: 'CLOSED HAT' }
 ];
 
-// 4. Generate Pads & Attach Mobile Touch Events
 const container = document.getElementById('pad-container');
 
-padsConfig.forEach(config => {
-   const pad = document.createElement('div');
-   pad.className = 'pad';
-   pad.textContent = config.label;
-   container.appendChild(pad);
+// Drag state variables
+let dragTimer = null;
+let isDragging = false;
+let draggedPad = null;
+let dragClone = null;
+let currentDropTarget = null;
+let startX = 0, startY = 0;
 
-   const triggerSound = (e) => {
-       e.preventDefault(); // STOPS screen scrolling/zooming immediately
-       if(!audioCtx) return;
+// Helper to swap two DOM elements safely
+function swapDOMNodes(node1, node2) {
+    const parent = node1.parentNode;
+    const sibling1 = node1.nextSibling === node2 ? node1 : node1.nextSibling;
+    const sibling2 = node2.nextSibling === node1 ? node2 : node2.nextSibling;
+    parent.insertBefore(node1, sibling2);
+    parent.insertBefore(node2, sibling1);
+}
 
-       // Wake up audio context if iOS paused it
-       if (audioCtx.state === 'suspended') audioCtx.resume();
-       
-       sounds[config.sound]();
-       
-       // UI Feedback
-       pad.classList.add('active');
-   };
+// 4. Save Layout to Firebase
+async function saveLayout() {
+    if (!userId || !db) return;
+    const pads = Array.from(document.querySelectorAll('.pad'));
+    const order = pads.map(pad => pad.dataset.sound);
+    try {
+        const layoutRef = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'padLayout');
+        await setDoc(layoutRef, { order });
+    } catch (e) {
+        console.error("Error saving layout:", e);
+    }
+}
 
-   const releaseSound = (e) => {
-       e.preventDefault();
-       pad.classList.remove('active');
-   };
+// 5. Render Pads dynamically based on configuration array
+function renderPads(layoutConfig) {
+    container.innerHTML = '';
+    
+    layoutConfig.forEach(config => {
+        const pad = document.createElement('div');
+        pad.className = 'pad';
+        pad.dataset.sound = config.sound;
+        
+        // Label wrapped in span to ignore pointer events for dropping
+        const label = document.createElement('span');
+        label.textContent = config.label;
+        pad.appendChild(label);
+        
+        container.appendChild(pad);
 
-   // Mobile specific events (zero latency compared to 'click')
-   pad.addEventListener('touchstart', triggerSound, { passive: false });
-   pad.addEventListener('touchend', releaseSound, { passive: false });
-   pad.addEventListener('touchcancel', releaseSound, { passive: false });
+        const triggerSound = () => {
+            if(!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            sounds[pad.dataset.sound](); 
+            pad.classList.add('active');
+        };
 
-   // Fallback for desktop testing
-   pad.addEventListener('mousedown', triggerSound);
-   pad.addEventListener('mouseup', releaseSound);
-   pad.addEventListener('mouseleave', releaseSound);
-});
+        // --- TOUCH EVENTS ---
+        pad.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Stop default gestures
+            
+            triggerSound(); // Play sound immediately on tap
+            
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
 
-// Prevent multi-touch zooming gestures on the whole document
-document.addEventListener('gesturestart', function(e) {
-   e.preventDefault();
-});
+            // Setup Long Press Timer for Drag Mode
+            clearTimeout(dragTimer);
+            dragTimer = setTimeout(() => {
+                isDragging = true;
+                draggedPad = pad;
+                
+                // Haptic Feedback if supported
+                if(navigator.vibrate) navigator.vibrate(50);
+
+                // Create Visual Clone
+                const rect = pad.getBoundingClientRect();
+                dragClone = document.createElement('div');
+                dragClone.className = 'pad-clone';
+                dragClone.textContent = pad.textContent;
+                
+                dragClone.style.width = rect.width + 'px';
+                dragClone.style.height = rect.height + 'px';
+                dragClone.style.left = rect.left + 'px';
+                dragClone.style.top = rect.top + 'px';
+                
+                document.body.appendChild(dragClone);
+                
+                pad.classList.remove('active');
+                pad.classList.add('origin-hidden');
+            }, 400); // 400ms threshold for long press
+        }, { passive: false });
+
+        pad.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            
+            // Cancel long press if finger moved slightly before timer triggered
+            if (!isDragging && dragTimer) {
+                const moveThreshold = 10;
+                if (Math.abs(touch.clientX - startX) > moveThreshold || 
+                    Math.abs(touch.clientY - startY) > moveThreshold) {
+                    clearTimeout(dragTimer);
+                    pad.classList.remove('active');
+                }
+            }
+            
+            if (isDragging) {
+                e.preventDefault(); // Lock screen scrolling
+                
+                const deltaX = touch.clientX - startX;
+                const deltaY = touch.clientY - startY;
+                dragClone.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                
+                const elUnderFinger = document.elementFromPoint(touch.clientX, touch.clientY);
+                const targetPad = elUnderFinger ? elUnderFinger.closest('.pad') : null;
+
+                // Handle Drop Hover styling
+                if (currentDropTarget && currentDropTarget !== targetPad) {
+                    currentDropTarget.classList.remove('drop-hover');
+                }
+                if (targetPad && targetPad !== draggedPad) {
+                    targetPad.classList.add('drop-hover');
+                    currentDropTarget = targetPad;
+                } else {
+                    currentDropTarget = null;
+                }
+            }
+        }, { passive: false });
+
+        const releaseTouch = (e) => {
+            if(e) e.preventDefault();
+            
+            clearTimeout(dragTimer);
+            pad.classList.remove('active');
+            
+            if (isDragging) {
+                // Execute Swap if dropped on a valid target
+                if (currentDropTarget) {
+                    swapDOMNodes(draggedPad, currentDropTarget);
+                    currentDropTarget.classList.remove('drop-hover');
+                    saveLayout(); // Persist the new layout to Firebase
+                }
+
+                // Cleanup DOM and States
+                if (dragClone && dragClone.parentNode) {
+                    dragClone.parentNode.removeChild(dragClone);
+                }
+                draggedPad.classList.remove('origin-hidden');
+                
+                isDragging = false;
+                draggedPad = null;
+                dragClone = null;
+                currentDropTarget = null;
+            }
+        };
+
+        pad.addEventListener('touchend', releaseTouch, { passive: false });
+        pad.addEventListener('touchcancel', releaseTouch, { passive: false });
+    });
+}
+
+// Extra safety: prevent whole document zooming/scrolling
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => {
+    if (isDragging) e.preventDefault(); 
+}, { passive: false });
+
+
+// 6. Application Bootstrapping
+async function initApp() {
+    if (auth && db) {
+        try {
+            // Priority Auth setup
+            if (initialAuthToken) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth);
+            }
+            userId = auth.currentUser.uid;
+            
+            // Fetch customized layout from user's private data store
+            const layoutRef = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'padLayout');
+            const docSnap = await getDoc(layoutRef);
+            
+            if (docSnap.exists() && docSnap.data().order) {
+                const savedOrder = docSnap.data().order;
+                // Safely map saved strings back to config objects
+                const loadedConfig = savedOrder.map(sound => initialConfig.find(c => c.sound === sound)).filter(Boolean);
+                
+                // Only use loaded config if no pads are missing
+                if (loadedConfig.length === initialConfig.length) {
+                    renderPads(loadedConfig);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error("Firebase Auth or Firestore error:", error);
+        }
+    }
+    
+    // Fallback: Initial state if offline, missing config, or no saved layout
+    renderPads(initialConfig);
+}
+
+// Start Boot sequence
+initApp();
+
 </script>
 </body>
 </html>
